@@ -1,6 +1,19 @@
 const { db } = require('../config/firebase.config');
 const mlService = require('./ml.service');
 
+// Daftar Alergi yang Diizinkan (Whitelist)
+const ALLOWED_ALLERGIES = [
+  'gluten-free', 
+  'dairy-free', 
+  'egg-free', 
+  'soy-free', 
+  'wheat-free', 
+  'fish-free', 
+  'shellfish-free', 
+  'tree-nut-free', 
+  'peanut-free'
+];
+
 // Helper: Hitung Umur
 const calculateAge = (birthdate) => {
   const birthDateObj = new Date(birthdate);
@@ -22,6 +35,8 @@ const getBmrLabel = (score) => {
     return labels[score] || "Unknown";
 };
 
+
+// UPDATE
 const updateUserPhysicalData = async (uid, data) => {
   const { name, birthdate, gender, height, weight, activityLevel, allergies } = data;
 
@@ -116,4 +131,19 @@ const updateUserPhysicalData = async (uid, data) => {
   return updatedDoc.data();
 };
 
-module.exports = { updateUserPhysicalData };
+//GET
+const getUserProfile = async (uid) => {
+  const userRef = db.collection('users').doc(uid);
+  const doc = await userRef.get();
+
+  if (!doc.exists) {
+    return null;
+  }
+
+  return doc.data();
+};
+
+module.exports = { 
+  updateUserPhysicalData, 
+  getUserProfile // <-- Jangan lupa export fungsi baru ini
+};

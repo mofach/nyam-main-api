@@ -12,9 +12,17 @@ const isOwner = (req, res, next) => {
     }
     next();
 };
+// 1. Update Profile (PUT)
 router.put('/:uid/profile', 
-    verifyToken,  // 1. Cek Token Valid gak?
-    isOwner,      // 2. Cek Punya Hak gak? (Opsional tapi disarankan)
-    userController.updateProfile // 3. Proses
+    verifyToken, 
+    isOwner, 
+    userController.updateProfile
+);
+
+// 2. Get Profile (GET) <-- INI KODE BARUNYA
+router.get('/:uid/profile', 
+    verifyToken,  // Cek Login
+    isOwner,      // Cek Kepemilikan Data
+    userController.getProfile
 );
 module.exports = router;
