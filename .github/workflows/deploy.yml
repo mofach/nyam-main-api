@@ -61,3 +61,4 @@ jobs:
           flags: "--allow-unauthenticated"
           env_vars: |
             NODE_ENV=production
+            ML_API_URL=${{ secrets.ML_API_URL }}
