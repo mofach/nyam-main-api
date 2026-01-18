@@ -12,6 +12,7 @@ const EDAMAM_USER = process.env.EDAMAM_USER_ID;
 
 // 1. Logic Penentuan Jam Makan (WIB)
 const getMealTypeByTime = () => {
+    // Ambil waktu sekarang di Jakarta
     const now = new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"});
     const hour = new Date(now).getHours();
 
@@ -23,21 +24,41 @@ const getMealTypeByTime = () => {
     return ['Dinner', 'Snack', 'Teatime'];
 };
 
-// 2. Logic Hitung Sisa Nutrisi Harian
+// 2. Logic Hitung Sisa Nutrisi Harian (FIXED NaN BUG)
 const calculateRemainingNutrition = async (uid, userProfile) => {
+    // Format tanggal hari ini: YYYY-MM-DD
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
-    const doc = await db.collection('users').doc(uid).collection('daily_logs').doc(today).get();
-
-    // Default target jika belum ada di profile
-    const target = userProfile.nutritionalNeeds || { calories: 2000, carbs: 250, fat: 60, protein: 100 };
     
+    const dailyRef = db.collection('users').doc(uid).collection('daily_logs').doc(today);
+    const doc = await dailyRef.get();
+
+    // Guard Clause: Pastikan ada nutritionalNeeds, kalau tidak pakai default (Number forced)
+    const needs = userProfile.nutritionalNeeds || {};
+    const target = { 
+        calories: Number(needs.calories) || 2000, 
+        carbs: Number(needs.carbs) || 250, 
+        fat: Number(needs.fat) || 60, 
+        protein: Number(needs.protein) || 100 
+    };
+
+    // Nutrisi yang sudah dikonsumsi (Default 0 jika belum ada log hari ini)
     let consumed = { calories: 0, carbs: 0, fat: 0, protein: 0 };
 
-    if (doc.exists && doc.data().summary) {
-        consumed = doc.data().summary;
+    if (doc.exists) {
+        const data = doc.data();
+        if (data.summary) {
+            // --- PERBAIKAN UTAMA DI SINI ---
+            // Mapping dari nama field DB (totalCalories) ke nama variabel hitungan (calories)
+            consumed = {
+                calories: Number(data.summary.totalCalories) || 0,
+                carbs: Number(data.summary.totalCarbs) || 0,
+                fat: Number(data.summary.totalFat) || 0,
+                protein: Number(data.summary.totalProtein) || 0
+            };
+        }
     }
 
-    // Return sisa (Minimal search value diset agar hasil tetap muncul)
+    // Hitung Sisa (Max untuk Edamam, min 0 biar gak error)
     return {
         calories: Math.max(100, target.calories - consumed.calories),
         carbs: Math.max(10, target.carbs - consumed.carbs),
