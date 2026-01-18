@@ -28,8 +28,10 @@ const calculateRemainingNutrition = async (uid, userProfile) => {
     const dailyRef = db.collection('users').doc(uid).collection('daily_logs').doc(today);
     const doc = await dailyRef.get();
 
-    // Target harian user (Default dari Profile)
-    const target = userProfile.nutritionalNeeds;
+    // Guard Clause: Pastikan ada nutritionalNeeds, kalau tidak pakai default
+    const target = userProfile.nutritionalNeeds || { 
+        calories: 2000, carbs: 250, fat: 60, protein: 100 
+    };
 
     // Nutrisi yang sudah dikonsumsi (Default 0 jika belum ada log hari ini)
     let consumed = { calories: 0, carbs: 0, fat: 0, protein: 0 };
@@ -106,9 +108,26 @@ const getRecommendations = async (uid, userProfile, foodLabel) => {
         const headers = {};
         if (EDAMAM_USER) headers['Edamam-Account-User'] = EDAMAM_USER;
 
-        console.log(`🔎 Edamam Search: "${queryText}" | Remaining Cal: ${Math.round(maxNutrients.calories)}`);
+        // --- 🕵️ DEBUGGER START ---
+        // Kita susun URL lengkap manual untuk diintip
+        const fullUrl = `${EDAMAM_BASE_URL}?${params.toString()}`;
 
-        const response = await axios.get(`${EDAMAM_BASE_URL}?${params.toString()}`, { headers });
+        console.log("\n==========================================");
+        console.log("🕵️  DEBUG EDAMAM REQUEST (SERVER SIDE)");
+        console.log("------------------------------------------");
+        console.log(`🔑 APP_ID Status: ${APP_ID ? '✅ Loaded (' + APP_ID + ')' : '❌ UNDEFINED'}`);
+        console.log(`🔑 APP_KEY Status: ${APP_KEY ? '✅ Loaded' : '❌ UNDEFINED'}`);
+        console.log(`🕒 Detected MealType: ${mealTypes.join(', ')}`);
+        console.log(`🥗 Calculated Quota:`, maxNutrients);
+        console.log("------------------------------------------");
+        console.log(`🔗 FINAL URL (Copy & Paste to Browser to Test):`);
+        console.log(fullUrl);
+        console.log("==========================================\n");
+        // --- 🕵️ DEBUGGER END ---
+
+        const response = await axios.get(fullUrl, { headers });
+
+        console.log(`✅ Edamam Success! Hits Found: ${response.data.count}`);
 
         // E. Saring & Format Response (Ambil 5 resep)
         const recipes = response.data.hits.slice(0, 5).map(hit => {
@@ -140,7 +159,8 @@ const getRecommendations = async (uid, userProfile, foodLabel) => {
 
     } catch (error) {
         console.error('❌ Edamam Service Error:', error.response?.data || error.message);
-        // Jangan throw error fatal, return kosong saja agar user tau gambar dikenali tapi resep nihil
+        
+        // Tetap return struktur kosong biar gak crash
         return {
             search_query: foodLabel,
             remaining_quota: {},
