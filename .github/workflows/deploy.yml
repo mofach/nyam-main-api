@@ -62,3 +62,6 @@ jobs:
           env_vars: |
             NODE_ENV=production
             ML_API_URL=${{ secrets.ML_API_URL }}
+            EDAMAM_APP_ID=${{ secrets.EDAMAM_APP_ID }}
+            EDAMAM_APP_KEY=${{ secrets.EDAMAM_APP_KEY }}
+            EDAMAM_USER_ID=${{ secrets.EDAMAM_USER_ID }}
