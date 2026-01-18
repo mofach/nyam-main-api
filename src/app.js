@@ -5,6 +5,7 @@ const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const predictRoutes = require('./routes/predict.routes');
 const trackerRoutes = require('./routes/tracker.routes');
+const searchRoutes = require('./routes/search.routes');
 
 const app = express();
 
@@ -24,5 +25,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/predict', predictRoutes);
 app.use('/api/tracker', trackerRoutes);
+app.use('/api/search', searchRoutes);
 
 module.exports = app;
