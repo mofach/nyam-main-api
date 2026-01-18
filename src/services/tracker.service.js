@@ -6,6 +6,7 @@ const userService = require('./user.service');
  */
 const addMealLog = async (uid, mealData) => {
   // 1. Tentukan Tanggal Hari Ini (ID Dokumen: YYYY-MM-DD)
+  // Gunakan Timezone Jakarta agar sinkron dengan pergantian hari user
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
   
   const userRef = db.collection('users').doc(uid);
@@ -19,7 +20,8 @@ const addMealLog = async (uid, mealData) => {
     carbs: Number(mealData.carbs) || 0,
     protein: Number(mealData.protein) || 0,
     fat: Number(mealData.fat) || 0,
-    imageUrl: mealData.imageUrl || null
+    imageUrl: mealData.imageUrl || null,
+    sourceUrl: mealData.sourceUrl || null // <-- ITEM BARU: Link asli resep
   };
 
   // 3. Cek apakah Dokumen Hari Ini sudah ada?
@@ -36,7 +38,7 @@ const addMealLog = async (uid, mealData) => {
     const newLog = {
       date: today,
       lastUpdated: new Date().toISOString(),
-      target: target, // Simpan target saat ini (biar kalau besok target ganti, history hari ini tetap)
+      target: target, // Simpan target saat ini (snapshot)
       summary: {
         totalCalories: newMeal.calories,
         totalCarbs: newMeal.carbs,
