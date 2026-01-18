@@ -77,7 +77,7 @@ const getRecommendations = async (uid, userProfile, foodLabel) => {
         const params = new URLSearchParams();
         
         params.append('type', 'public');
-        params.append('q', queryText); // <-- Langsung 'chicken', 'beef', dll
+        params.append('q', queryText); 
         params.append('app_id', APP_ID);
         params.append('app_key', APP_KEY);
         
@@ -100,8 +100,22 @@ const getRecommendations = async (uid, userProfile, foodLabel) => {
         params.append('imageSize', 'LARGE');
         params.append('random', 'true');
 
-        // Fields filtering
-        const fields = ['label', 'image', 'images', 'url', 'ingredients', 'calories', 'totalWeight', 'totalTime', 'cuisineType', 'mealType', 'totalNutrients'];
+        // --- PERBAIKAN 1: Update Fields ---
+        // Ganti 'ingredients' jadi 'ingredientLines' agar dapat teks yang bersih
+        const fields = [
+            'label', 
+            'image', 
+            'images', 
+            'url', 
+            'ingredientLines', // <-- FIELD PENTING (List bahan format text)
+            'calories', 
+            'totalWeight', 
+            'totalTime', 
+            'cuisineType', 
+            'mealType', 
+            'totalNutrients'
+        ];
+        
         fields.forEach(field => params.append('field', field));
 
         // D. Request ke Edamam
@@ -109,7 +123,6 @@ const getRecommendations = async (uid, userProfile, foodLabel) => {
         if (EDAMAM_USER) headers['Edamam-Account-User'] = EDAMAM_USER;
 
         // --- 🕵️ DEBUGGER START ---
-        // Kita susun URL lengkap manual untuk diintip
         const fullUrl = `${EDAMAM_BASE_URL}?${params.toString()}`;
 
         console.log("\n==========================================");
@@ -141,7 +154,11 @@ const getRecommendations = async (uid, userProfile, foodLabel) => {
                 time: r.totalTime,
                 cuisineType: r.cuisineType,
                 mealType: r.mealType,
-                ingredients: r.ingredients.map(i => i.text),
+                
+                // --- PERBAIKAN 2: Mapping Response ---
+                // Ambil langsung dari ingredientLines (sudah array of strings)
+                ingredients: r.ingredientLines || [], 
+
                 nutrients: {
                     carbs: Math.round(r.totalNutrients.CHOCDF?.quantity || 0),
                     protein: Math.round(r.totalNutrients.PROCNT?.quantity || 0),
@@ -160,7 +177,6 @@ const getRecommendations = async (uid, userProfile, foodLabel) => {
     } catch (error) {
         console.error('❌ Edamam Service Error:', error.response?.data || error.message);
         
-        // Tetap return struktur kosong biar gak crash
         return {
             search_query: foodLabel,
             remaining_quota: {},
