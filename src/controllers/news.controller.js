@@ -1,20 +1,26 @@
 const newsService = require('../services/news.service');
 
-const getNews = async (req, res) => {
-    try {
-        const articles = await newsService.getHealthNews();
-        
-        res.status(200).json({
-            status: 'success',
-            message: 'Health news fetched successfully',
-            data: articles
-        });
-    } catch (error) {
-        res.status(500).json({
-            status: 'error',
-            message: error.message
-        });
-    }
-};
+class NewsController {
+  constructor(service) {
+    this.service = service;
+  }
 
-module.exports = { getNews };
+  getNews = async (req, res) => {
+    try {
+      const articles = await this.service.getHealthNews();
+      
+      res.status(200).json({
+        status: 'success',
+        message: 'Health news fetched successfully',
+        data: articles
+      });
+    } catch (error) {
+      res.status(500).json({
+        status: 'error',
+        message: error.message
+      });
+    }
+  }
+}
+
+module.exports = new NewsController(newsService);

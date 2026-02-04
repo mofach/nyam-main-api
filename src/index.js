@@ -1,21 +1,32 @@
-require('dotenv').config(); // Load environment variables dari .env
-const app = require('./app'); // Import settingan app dari app.js
+require('dotenv').config();
+const app = require('./app');
 
-const PORT = process.env.PORT || 3000;
-
-// --- Server Listener ---
-const server = app.listen(PORT, () => {
-  console.log(`=================================`);
-  console.log(`🚀 NYAM Server running on PORT ${PORT}`);
-  console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`=================================`);
-});
-
-// Handle error kalau port dipakai atau error lain saat start
-server.on('error', (error) => {
-  if (error.code === 'EADDRINUSE') {
-    console.error(`❌ Port ${PORT} is already in use.`);
-  } else {
-    console.error('❌ Server error:', error);
+class Server {
+  constructor(app) {
+    this.app = app;
+    this.port = process.env.PORT || 3000;
+    this.env = process.env.NODE_ENV || 'development';
   }
-});
+
+  start() {
+    const server = this.app.listen(this.port, () => {
+      console.log(`=================================`);
+      console.log(`🚀 NYAM Server running on PORT ${this.port}`);
+      console.log(`   Environment: ${this.env}`);
+      console.log(`=================================`);
+    });
+
+    server.on('error', (error) => this.handleError(error));
+  }
+
+  handleError(error) {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`❌ Port ${this.port} is already in use.`);
+    } else {
+      console.error('❌ Server error:', error);
+    }
+  }
+}
+
+const serverInstance = new Server(app);
+serverInstance.start();

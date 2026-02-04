@@ -1,149 +1,83 @@
 const { db } = require('../config/firebase.config');
 const mlService = require('./ml.service');
 
-// Daftar Alergi yang Diizinkan (Whitelist)
-const ALLOWED_ALLERGIES = [
-  'gluten-free', 
-  'dairy-free', 
-  'egg-free', 
-  'soy-free', 
-  'wheat-free', 
-  'fish-free', 
-  'shellfish-free', 
-  'tree-nut-free', 
-  'peanut-free'
-];
+class UserService {
+  constructor(database, ml) {
+    this.db = database;
+    this.mlService = ml;
+  }
 
-// Helper: Hitung Umur
-const calculateAge = (birthdate) => {
-  const birthDateObj = new Date(birthdate);
-  const ageDifMs = Date.now() - birthDateObj.getTime();
-  const ageDate = new Date(ageDifMs); 
-  return Math.abs(ageDate.getUTCFullYear() - 1970);
-};
+  // Helper Methods (Internal Logic)
+  _calculateAge(birthdate) {
+    const birthDateObj = new Date(birthdate);
+    const ageDifMs = Date.now() - birthDateObj.getTime();
+    const ageDate = new Date(ageDifMs); 
+    return Math.abs(ageDate.getUTCFullYear() - 1970);
+  }
 
-// Helper: Mapping Label ML (Opsional, biar data di DB lebih terbaca)
-const getBmrLabel = (score) => {
-    const labels = [
-        "Extremely Weak",   // 0
-        "Weak",             // 1
-        "Normal",           // 2
-        "Overweight",       // 3
-        "Obesity",          // 4
-        "Extremely Obesity" // 5
-    ];
+  _getBmrLabel(score) {
+    const labels = ["Extremely Weak", "Weak", "Normal", "Overweight", "Obesity", "Extremely Obesity"];
     return labels[score] || "Unknown";
-};
-
-
-// UPDATE
-const updateUserPhysicalData = async (uid, data) => {
-  const { name, birthdate, gender, height, weight, activityLevel, allergies } = data;
-
-  // --- 1. PREPARASI DATA ---
-  const age = calculateAge(birthdate);
-  const heightInMeters = height / 100;
-  
-  // --- 2. HITUNG BMI (Rumus Kustom User) ---
-  const bmi = parseFloat((weight / (heightInMeters * heightInMeters)).toFixed(1));
-  let bmiStatus = 'Normal';
-
-  if (bmi < 16) bmiStatus = 'Severely Underweight';
-  else if (bmi >= 16.1 && bmi <= 18.4) bmiStatus = 'Underweight';
-  else if (bmi >= 18.5 && bmi <= 24.9) bmiStatus = 'Normal';
-  else if (bmi >= 25 && bmi <= 29.9) bmiStatus = 'Overweight';
-  else if (bmi >= 30 && bmi <= 34.9) bmiStatus = 'Moderately Obese';
-  else if (bmi >= 35 && bmi <= 39.9) bmiStatus = 'Severely Obese';
-  else bmiStatus = 'Morbidly Obese';
-
-  // --- 3. HITUNG BMR MANUAL (Mifflin-St Jeor) ---
-  let bmr = 0;
-  // Asumsi Input: 0 = Pria, 1 = Wanita
-  if (parseInt(gender) === 0) { 
-      // Pria: (10 × weight) + (6.25 × height) - (5 × age) + 5
-      bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
-  } else { 
-      // Wanita: (10 × weight) + (6.25 × height) - (5 × age) - 161
-      bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
   }
-  bmr = Math.round(bmr);
 
-  // --- 4. HITUNG TDEE & MAKRO ---
-  // TDEE = BMR * Activity Level
-  const tdee = Math.round(bmr * parseFloat(activityLevel));
+  async updateUserPhysicalData(uid, data) {
+    const { name, birthdate, gender, height, weight, activityLevel, allergies } = data;
 
-  // Hitung Kebutuhan Makro (Gram)
-  // Karbohidrat (4 kal/gr) = 50%
-  // Protein (4 kal/gr) = 30%
-  // Lemak (9 kal/gr) = 20%
-  const macros = {
-      carbs: Math.round((tdee * 0.50) / 4),
-      protein: Math.round((tdee * 0.30) / 4),
-      fat: Math.round((tdee * 0.20) / 9)
-  };
+    const age = this._calculateAge(birthdate);
+    const heightInMeters = height / 100;
+    
+    // Hitung BMI
+    const bmi = parseFloat((weight / (heightInMeters * heightInMeters)).toFixed(1));
+    let bmiStatus = this._determineBmiStatus(bmi);
 
-  // --- 5. PREDIKSI ML (BMR Score) ---
-  const mlPayload = {
-    gender: parseInt(gender), // Pastikan format integer (0/1)
-    height: parseFloat(height),
-    weight: parseFloat(weight),
-    bmi: bmi
-  };
+    // Hitung BMR (Mifflin-St Jeor)
+    let bmr = (parseInt(gender) === 0) 
+      ? (10 * weight) + (6.25 * height) - (5 * age) + 5
+      : (10 * weight) + (6.25 * height) - (5 * age) - 161;
+    bmr = Math.round(bmr);
 
-  // Tembak ke API Python
-  const bmrScore = await mlService.predictBmrScore(mlPayload);
+    const tdee = Math.round(bmr * parseFloat(activityLevel));
 
-  // --- 6. UPDATE DATABASE ---
-  const updatePayload = {
-    name: name,
-    birthdate: birthdate,
-    physicalData: {
-      gender: parseInt(gender),
-      age: age,
-      height: parseFloat(height),
-      weight: parseFloat(weight),
-      activityLevel: parseFloat(activityLevel)
-    },
-    preferences: {
-      allergies: allergies || []
-    },
-    healthStats: {
-      bmi: bmi,
-      bmiStatus: bmiStatus,
-      bmr: bmr,          // Hasil Mifflin-St Jeor
-      tdee: tdee,        // Hasil TDEE
-      bmrScore: bmrScore,      // Hasil ML (0-5)
-      bmrLabel: bmrScore !== null ? getBmrLabel(bmrScore) : null // Label ML
-    },
-    nutritionalNeeds: {  // <-- Data Makro Baru
+    // Prediksi ML
+    const bmrScore = await this.mlService.predictBmrScore({ 
+      gender: parseInt(gender), height: parseFloat(height), weight: parseFloat(weight), bmi 
+    });
+
+    const updatePayload = {
+      name,
+      birthdate,
+      physicalData: { gender: parseInt(gender), age, height: parseFloat(height), weight: parseFloat(weight), activityLevel: parseFloat(activityLevel) },
+      preferences: { allergies: allergies || [] },
+      healthStats: { bmi, bmiStatus, bmr, tdee, bmrScore, bmrLabel: bmrScore !== null ? this._getBmrLabel(bmrScore) : null },
+      nutritionalNeeds: {
         calories: tdee,
-        carbs: macros.carbs,
-        protein: macros.protein,
-        fat: macros.fat
-    },
-    isOnboardingCompleted: true
-  };
+        carbs: Math.round((tdee * 0.5) / 4),
+        protein: Math.round((tdee * 0.3) / 4),
+        fat: Math.round((tdee * 0.2) / 9)
+      },
+      isOnboardingCompleted: true
+    };
 
-  const userRef = db.collection('users').doc(uid);
-  await userRef.update(updatePayload);
-
-  const updatedDoc = await userRef.get();
-  return updatedDoc.data();
-};
-
-//GET
-const getUserProfile = async (uid) => {
-  const userRef = db.collection('users').doc(uid);
-  const doc = await userRef.get();
-
-  if (!doc.exists) {
-    return null;
+    const userRef = this.db.collection('users').doc(uid);
+    await userRef.update(updatePayload);
+    const updatedDoc = await userRef.get();
+    return updatedDoc.data();
   }
 
-  return doc.data();
-};
+  _determineBmiStatus(bmi) {
+    if (bmi < 16) return 'Severely Underweight';
+    if (bmi <= 18.4) return 'Underweight';
+    if (bmi <= 24.9) return 'Normal';
+    if (bmi <= 29.9) return 'Overweight';
+    if (bmi <= 34.9) return 'Moderately Obese';
+    if (bmi <= 39.9) return 'Severely Obese';
+    return 'Morbidly Obese';
+  }
 
-module.exports = { 
-  updateUserPhysicalData, 
-  getUserProfile // <-- Jangan lupa export fungsi baru ini
-};
+  async getUserProfile(uid) {
+    const doc = await this.db.collection('users').doc(uid).get();
+    return doc.exists ? doc.data() : null;
+  }
+}
+
+module.exports = new UserService(db, mlService);

@@ -6,28 +6,43 @@ const userRoutes = require('./routes/user.routes');
 const predictRoutes = require('./routes/predict.routes');
 const trackerRoutes = require('./routes/tracker.routes');
 const searchRoutes = require('./routes/search.routes');
-const newsRoutes = require('./routes/news.routes');       // <-- Baru
+const newsRoutes = require('./routes/news.routes');
 const chatbotRoutes = require('./routes/chatbot.routes');
 
-const app = express();
+class App {
+  constructor() {
+    this.app = express();
+    this.setMiddlewares();
+    this.setRoutes();
+  }
 
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+  setMiddlewares() {
+    this.app.use(cors());
+    this.app.use(express.json());
+    this.app.use(express.urlencoded({ extended: true }));
+  }
 
-app.get('/', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'NYAM Backend API is running',
-    timestamp: new Date().toISOString()
-  });
-});
+  setRoutes() {
+    this.app.get('/', (req, res) => {
+      res.status(200).json({
+        status: 'success',
+        message: 'NYAM Backend API is running',
+        timestamp: new Date().toISOString()
+      });
+    });
 
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/predict', predictRoutes);
-app.use('/api/tracker', trackerRoutes);
-app.use('/api/search', searchRoutes);
-app.use('/api/news', newsRoutes);
-app.use('/api/chat', chatbotRoutes);
-module.exports = app;
+    this.app.use('/api/auth', authRoutes);
+    this.app.use('/api/users', userRoutes);
+    this.app.use('/api/predict', predictRoutes);
+    this.app.use('/api/tracker', trackerRoutes);
+    this.app.use('/api/search', searchRoutes);
+    this.app.use('/api/news', newsRoutes);
+    this.app.use('/api/chat', chatbotRoutes);
+  }
+
+  getApp() {
+    return this.app;
+  }
+}
+
+module.exports = new App().getApp();

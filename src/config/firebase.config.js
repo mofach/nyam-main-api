@@ -1,14 +1,42 @@
 const admin = require('firebase-admin');
-// Pastikan path ke serviceAccountKey.json benar (naik 2 level dari folder config)
-const serviceAccount = require('../../serviceAccountKey.json'); 
+const serviceAccount = require('../../serviceAccountKey.json');
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
+class FirebaseConfig {
+  constructor() {
+    this.initialize();
+  }
+
+  initialize() {
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+      });
+      console.log("🔥 Firebase Admin SDK initialized");
+    }
+    
+    this.db = admin.firestore();
+    this.auth = admin.auth();
+    this.admin = admin;
+  }
+
+  getFirestore() {
+    return this.db;
+  }
+
+  getAuth() {
+    return this.auth;
+  }
+
+  getAdmin() {
+    return this.admin;
+  }
 }
 
-const db = admin.firestore();
-const auth = admin.auth();
+// Kita ekspor instance-nya agar tetap Singleton
+const firebaseInstance = new FirebaseConfig();
 
-module.exports = { admin, db, auth };
+module.exports = {
+  db: firebaseInstance.getFirestore(),
+  auth: firebaseInstance.getAuth(),
+  admin: firebaseInstance.getAdmin()
+};

@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
-// Import controller dengan nama file baru
 const authController = require('../controllers/auth.controller');
 
-// POST /api/auth/google
+// Karena di controller sudah pakai arrow function, tidak perlu .bind(this)
 router.post('/google', authController.googleAuth);
 
 module.exports = router;
