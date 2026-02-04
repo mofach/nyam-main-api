@@ -3,46 +3,54 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 class ChatbotService {
   constructor() {
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    this.model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
   }
 
   async generateReply(userMessage, userProfile, chatHistory = []) {
     try {
-      // 1. Definisikan System Instruction (Persona)
-      const systemInstruction = `
-        Bertindaklah sebagai 'NYAM Bot', asisten ahli gizi pribadi yang ramah dan profesional.
-        Profil Pengguna:
-        - Berat: ${userProfile.physicalData?.weight || 'Tidak diketahui'} kg
-        - Tinggi: ${userProfile.physicalData?.height || 'Tidak diketahui'} cm
-        - Umur: ${userProfile.physicalData?.age || 'Tidak diketahui'} tahun
-        - Gender: ${userProfile.physicalData?.gender === 0 ? 'Laki-laki' : 'Perempuan'}
-        
-        Instruksi:
-        1. Jawab pertanyaan pengguna terkait gizi, makanan, dan kesehatan.
-        2. Gunakan data profil untuk saran personal.
-        3. Tolak pertanyaan non-kesehatan dengan sopan.
-        4. Jawaban maksimal 3 paragraf pendek, santai, Bahasa Indonesia.
-      `;
+      // Logic Fallback: Cek di physicalData (OOP), jika tidak ada cek di root (Old Code)
+      const weight = userProfile.physicalData?.weight || userProfile.weight || 'Tidak diketahui';
+      const height = userProfile.physicalData?.height || userProfile.height || 'Tidak diketahui';
+      const age = userProfile.physicalData?.age || userProfile.age || 'Tidak diketahui';
+      
+      // Handle gender (Old code pakai string 'male', OOP pakai integer 0)
+      const genderValue = userProfile.physicalData?.gender ?? userProfile.gender;
+      const gender = (genderValue === 0 || genderValue === 'male') ? 'Laki-laki' : 'Perempuan';
 
-      // 2. Memulai Chat Session dengan History
-      // History harus dalam format: [{ role: "user", parts: [{ text: "..." }] }, { role: "model", parts: [...] }]
+      const systemInstruction = `
+            Bertindaklah sebagai 'NYAM Bot', asisten ahli gizi pribadi yang ramah dan profesional.
+            
+            Profil Pengguna:
+            - Berat: ${weight} kg
+            - Tinggi: ${height} cm
+            - Umur: ${age} tahun
+            - Gender: ${gender}
+            
+            Instruksi:
+            1. Jawab pertanyaan pengguna terkait gizi, makanan, dan kesehatan.
+            2. Gunakan data profil pengguna untuk memberikan saran yang lebih personal.
+            3. Jika pertanyaan melenceng jauh dari kesehatan, tolak dengan sopan.
+            4. Jawaban maksimal 3 paragraf pendek. Gunakan Bahasa Indonesia yang santai.
+        `;
+
+      // Gunakan startChat untuk memperbaiki bug "lupa konteks"
       const chatSession = this.model.startChat({
         history: chatHistory,
-        generationConfig: { maxOutputTokens: 500 },
       });
 
-      // 3. Kirim pesan dengan instruksi sistem yang disematkan di awal jika history kosong
+      // Untuk pesan pertama, kita sertakan System Instruction sebagai konteks awal
       const finalMessage = chatHistory.length === 0 
-        ? `${systemInstruction}\n\nUser berkata: ${userMessage}` 
+        ? `${systemInstruction}\n\nUser bertanya: "${userMessage}"` 
         : userMessage;
 
       const result = await chatSession.sendMessage(finalMessage);
       const response = await result.response;
-      
       return response.text();
+
     } catch (error) {
-      console.error('Gemini AI Error:', error);
-      throw new Error('Maaf, fitur konsultasi sedang gangguan.');
+      // Log error asli ke console cloud agar kamu bisa baca detailnya
+      console.error('❌ Gemini API Detail Error:', error);
+      throw new Error('Maaf, fitur konsultasi sedang gangguan. Coba lagi nanti.');
     }
   }
 }
