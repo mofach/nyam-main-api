@@ -5,7 +5,7 @@ class ChatbotService {
     // Inisialisasi API Key dari environment variables
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     // Menggunakan model gemini-1.5-flash untuk stabilitas chat kontinu
-    this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    this.model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
   }
 
   /**
