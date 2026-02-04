@@ -1,8 +1,18 @@
 const express = require('express');
-const router = express.Router();
 const chatbotController = require('../controllers/chatbot.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
 
-router.post('/', authMiddleware.verifyToken, chatbotController.chat);
+class ChatbotRoutes {
+  constructor(controller, middleware) {
+    this.router = express.Router();
+    this.controller = controller;
+    this.middleware = middleware;
+    this.setRoutes();
+  }
 
-module.exports = router;
+  setRoutes() {
+    this.router.post('/', this.middleware.verifyToken, this.controller.chat);
+  }
+}
+
+module.exports = new ChatbotRoutes(chatbotController, authMiddleware).router;

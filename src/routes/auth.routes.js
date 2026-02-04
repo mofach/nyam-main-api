@@ -1,8 +1,16 @@
 const express = require('express');
-const router = express.Router();
 const authController = require('../controllers/auth.controller');
 
-// Karena di controller sudah pakai arrow function, tidak perlu .bind(this)
-router.post('/google', authController.googleAuth);
+class AuthRoutes {
+  constructor(controller) {
+    this.router = express.Router();
+    this.controller = controller;
+    this.setRoutes();
+  }
 
-module.exports = router;
+  setRoutes() {
+    this.router.post('/google', this.controller.googleAuth);
+  }
+}
+
+module.exports = new AuthRoutes(authController).router;

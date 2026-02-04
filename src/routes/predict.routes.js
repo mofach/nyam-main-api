@@ -1,18 +1,27 @@
 const express = require('express');
-const router = express.Router();
 const multer = require('multer');
 const predictController = require('../controllers/predict.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }
-});
+class PredictRoutes {
+  constructor(controller, middleware) {
+    this.router = express.Router();
+    this.controller = controller;
+    this.middleware = middleware;
+    this.upload = multer({
+      storage: multer.memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 }
+    });
+    this.setRoutes();
+  }
 
-router.post('/food', 
-    authMiddleware.verifyToken, 
-    upload.single('file'), 
-    predictController.scanFood
-);
+  setRoutes() {
+    this.router.post('/food', 
+      this.middleware.verifyToken, 
+      this.upload.single('file'), 
+      this.controller.scanFood
+    );
+  }
+}
 
-module.exports = router;
+module.exports = new PredictRoutes(predictController, authMiddleware).router;

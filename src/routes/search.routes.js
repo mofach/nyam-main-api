@@ -1,18 +1,19 @@
 const express = require('express');
-const router = express.Router();
 const searchController = require('../controllers/search.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
 
-// Dashboard otomatis (Sesuai Gizi & Jam)
-router.get('/recommendations', 
-    authMiddleware.verifyToken, 
-    searchController.getSmartRecommendations
-);
+class SearchRoutes {
+  constructor(controller, middleware) {
+    this.router = express.Router();
+    this.controller = controller;
+    this.middleware = middleware;
+    this.setRoutes();
+  }
 
-// Pencarian manual
-router.get('/query', 
-    authMiddleware.verifyToken, 
-    searchController.searchRecipes
-);
+  setRoutes() {
+    this.router.get('/recommendations', this.middleware.verifyToken, this.controller.getSmartRecommendations);
+    this.router.get('/query', this.middleware.verifyToken, this.controller.searchRecipes);
+  }
+}
 
-module.exports = router;
+module.exports = new SearchRoutes(searchController, authMiddleware).router;

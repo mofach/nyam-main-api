@@ -1,9 +1,18 @@
 const express = require('express');
-const router = express.Router();
 const newsController = require('../controllers/news.controller');
 const authMiddleware = require('../middlewares/auth.middleware');
 
-// Endpoint: GET /api/news
-router.get('/', authMiddleware.verifyToken, newsController.getNews);
+class NewsRoutes {
+  constructor(controller, middleware) {
+    this.router = express.Router();
+    this.controller = controller;
+    this.middleware = middleware;
+    this.setRoutes();
+  }
 
-module.exports = router;
+  setRoutes() {
+    this.router.get('/', this.middleware.verifyToken, this.controller.getNews);
+  }
+}
+
+module.exports = new NewsRoutes(newsController, authMiddleware).router;
